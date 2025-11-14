@@ -31,10 +31,15 @@ jobs:
           fi
       # ----------------------------------------------------------------------
       
-      # --- FIX 3 (New): Explicitly initialize and update submodules to ensure theme files are present ---
+      # --- FIX 3: Explicitly initialize and update submodules to ensure theme files are present ---
       - name: Initialize Submodules
         run: git submodule update --init --recursive
       # ---------------------------------------------------------------------------------------------------
+      
+      # --- NEW STEP: Diagnostic Check ---
+      - name: List Theme Dir Contents
+        run: ls -lR themes
+      # ----------------------------------
 
       # 1. Install Hugo using a dedicated action that handles Go/Extended correctly
       - name: Install Hugo
