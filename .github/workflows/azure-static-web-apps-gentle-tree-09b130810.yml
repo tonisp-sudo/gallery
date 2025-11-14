@@ -18,7 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          # This should check out the theme files, but we'll manually ensure it below.
           submodules: true
           lfs: false
 
@@ -30,16 +29,19 @@ jobs:
             mv go.mod go.mod.bak
           fi
       # ----------------------------------------------------------------------
-      
-      # --- FIX 3: Explicitly initialize and update submodules to ensure theme files are present ---
+
+      # --- FIX 2: Explicitly initialize and update submodules to ensure theme files are present ---
       - name: Initialize Submodules
         run: git submodule update --init --recursive
       # ---------------------------------------------------------------------------------------------------
-      
-      # --- NEW STEP: Diagnostic Check ---
-      - name: List Theme Dir Contents
-        run: ls -lR themes
-      # ----------------------------------
+
+      # --- FIX 3: Resolve Hugo Modules (Forces dependency fetch) ---
+      - name: Resolve Hugo Modules
+        run: |
+          hugo mod clean
+          hugo mod tidy
+          hugo mod download
+      # -----------------------------------------------------------------
 
       # 1. Install Hugo using a dedicated action that handles Go/Extended correctly
       - name: Install Hugo
@@ -50,8 +52,7 @@ jobs:
 
       # 2. Run the Hugo build command, creating the 'public' folder
       - name: Build Hugo Site
-        # The --theme flag overrides the module path in hugo.toml with the local directory name.
-        run: hugo --gc --minify --theme "hugo-theme-gallery"
+        run: hugo --gc --minify
 
       # 3. Upload the built 'public' folder as a named artifact for the next job
       - name: Upload Artifact
@@ -83,7 +84,7 @@ jobs:
           # CRITICAL FIXES: We skip the build and point directly to the downloaded artifact
           skip_app_build: true
           app_artifact_location: "public"
-          
+
           # Other config parameters:
           app_location: "/"
           api_location: ""
