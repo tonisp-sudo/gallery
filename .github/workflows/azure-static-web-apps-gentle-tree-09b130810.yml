@@ -26,17 +26,31 @@ jobs:
         with:
           hugo-version: 'latest'
           extended: true
+      
+      # CRITICAL STEP: Remove the conflicting 'replace' directive from go.mod
+      # This is the root cause of the "no such file or directory" error in CI/CD.
+      - name: Clean Conflicting go.mod Replace Directive
+        run: |
+          # Use sed to remove any line containing the theme replacement directive.
+          # We target the module path and the 'replace' keyword to remove the problematic local path reference.
+          if [ -f "go.mod" ]; then
+            echo "Removing conflicting replace directives from go.mod..."
+            # sed command to remove lines containing 'github.com/nicokaiser/hugo-theme-gallery/v4' AND 'replace'
+            sed -i.bak '/github.com\/nicokaiser\/hugo-theme-gallery\/v4/ { /replace/d; }' go.mod
+            cat go.mod # Print the cleaned file for inspection in the logs
+          else
+            echo "go.mod not found. Skipping clean-up."
+          fi
 
-      # 2. Resolve Hugo Modules by VENDERING (This is the critical fix for the 'replaced by ../' error)
+      # 3. Resolve Hugo Modules by VENDERING (This should now succeed cleanly)
       - name: Resolve Hugo Modules via Vendor
         run: hugo mod vendor
 
-      # 3. Run the Hugo build command
+      # 4. Run the Hugo build command
       - name: Build Hugo Site
-        # The build process now uses the local _vendor directory automatically
         run: hugo --gc --minify
 
-      # 4. Upload the built 'public' folder as a named artifact
+      # 5. Upload the built 'public' folder as a named artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
