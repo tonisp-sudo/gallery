@@ -42,19 +42,13 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # --- RE-ADDING RESOLVE STEP (The key to fixing the module not found error) ---
-      # This step must run AFTER 'Install Hugo' to work correctly.
-      - name: Resolve Hugo Modules
-        run: |
-          hugo mod clean
-          hugo mod tidy
-          hugo mod download
-      # ----------------------------------------------------------------------------
+      # --- REMOVED STEP: 'Resolve Hugo Modules' step removed. It failed because it conflicts with the submodule files. ---
+      # We rely on the theme files being locally present via the submodule checkout.
 
       # 2. Run the Hugo build command, creating the 'public' folder
-      # Hugo will now rely on the theme files checked out by the submodule AND modules resolved here.
+      # We add the --theme flag back to explicitly point to the local theme directory.
       - name: Build Hugo Site
-        run: hugo --gc --minify
+        run: hugo --gc --minify --theme "hugo-theme-gallery"
 
       # 3. Upload the built 'public' folder as a named artifact for the next job
       - name: Upload Artifact
