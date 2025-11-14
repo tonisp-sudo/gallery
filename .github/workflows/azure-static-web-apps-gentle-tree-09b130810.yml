@@ -72,9 +72,11 @@ jobs:
           done
           echo "Conversion complete."
 
-      # 3. Run the Hugo build command
+      # 3. Run the Hugo build command (FIXED BASE URL)
       - name: Build Hugo Site
-        run: hugo --gc --minify
+        # CRITICAL CHANGE: We pass the correct base URL to Hugo here. 
+        # The repository name (e.g., 'gallery') is used as the subdirectory for GitHub Pages.
+        run: hugo --gc --minify --baseURL "/${{ github.event.repository.name }}/"
 
       # CRITICAL STEP 5: Aggressively Optimize Images to reduce overall site size
       - name: Aggressively Optimize Images
