@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  # JOB 1: Dedicated Build Job (using the reliable peaceiris action)
+  # JOB 1: Dedicated Build Job (relying on the Hugo Module configuration)
   build_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
@@ -18,53 +18,39 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          submodules: true
+          # Submodules are no longer needed, as the theme is now a Hugo Module.
           lfs: false
 
-      # --- FIX 1: Move aside the root go.mod file (Prevents 'replace' directive error) ---
-      - name: Clean up local go.mod
-        run: |
-          if [ -f go.mod ]; then
-            echo "Found root go.mod. Moving it aside to prevent module path confusion."
-            mv go.mod go.mod.bak
-          fi
-      # ----------------------------------------------------------------------
-
-      # --- FIX 2: Explicitly initialize and update submodules to ensure theme files are present ---
-      - name: Initialize Submodules
-        run: git submodule update --init --recursive
-      # ---------------------------------------------------------------------------------------------------
-
-      # 1. Install Hugo (This MUST run before any 'hugo' command)
+      # 1. Install Hugo
       - name: Install Hugo
         uses: peaceiris/actions-hugo@v2
         with:
           hugo-version: 'latest'
           extended: true
 
-      # --- REMOVED STEP: 'Resolve Hugo Modules' step removed. It failed because it conflicts with the submodule files. ---
-      # We rely on the theme files being locally present via the submodule checkout.
+      # 2. Resolve Hugo Modules (Uses 'tidy' to resolve dependencies based on go.mod)
+      - name: Resolve Hugo Modules
+        run: hugo mod tidy
 
-      # 2. Run the Hugo build command, creating the 'public' folder
-      # We add the --theme flag back to explicitly point to the local theme directory.
+      # 3. Run the Hugo build command
       - name: Build Hugo Site
-        run: hugo --gc --minify --theme "hugo-theme-gallery"
+        run: hugo --gc --minify
 
-      # 3. Upload the built 'public' folder as a named artifact for the next job
+      # 4. Upload the built 'public' folder as a named artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: hugo-site-public
           path: public
 
-  # JOB 2: Dedicated Deployment Job (skipping the build step)
+  # JOB 2: Dedicated Deployment Job
   deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Deploy To Azure
-    needs: build_job # Wait for the build job to complete successfully
+    needs: build_job
     steps:
-      # 1. Download the built 'public' folder artifact from the previous job
+      # 1. Download the built 'public' folder artifact
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
