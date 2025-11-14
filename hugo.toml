@@ -1,5 +1,5 @@
+theme = "github.com/nicokaiser/hugo-theme-gallery/v4"
 baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = 'My New Hugo Site'
-theme = "hugo-theme-gallery"
 
