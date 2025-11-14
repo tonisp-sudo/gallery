@@ -1,0 +1,59 @@
+copyright = "© Tõnis Praks"
+defaultContentLanguage = "en"
+disableKinds = ["taxonomy"]
+enableRobotsTXT = true
+languageCode = "en"
+timeZone = "Australia/Perth"
+timeout = "120s"
+title = "Praks Imagery"
+
+[params]
+  defaultTheme = "dark"
+  description = "Tonis Praks Photo Gallery"
+  title = "My Gallery"
+  [params.author]
+    email = "tonispraks94@gmail.com"
+    name = "Tonis Praks"
+  [params.socialIcons]
+    github = "https://github.com/tonisp-sudo"
+    email = "mailto:tonispraks94@gmail.com"
+    #website = "https://example.com"
+    #mastodon = "https://example.com"
+    #pixelfed = "https://example.com"
+    #mixcloud = "https://example.com"
+    #flickr = "https://www.flickr.com"
+    #500px = "https://500px"
+    #whatsapp = "1234567890"
+  [params.gallery]
+    #boxSpacing = 10
+    #targetRowHeight = 288
+    #targetRowHeightTolerance = 0.25
+
+[outputs]
+  home = ["HTML", "RSS"]
+  page = ["HTML"]
+  section = ["HTML"]
+
+[imaging]
+  quality = 75
+  resampleFilter = "CatmullRom"
+  [imaging.exif]
+    disableDate = false
+    disableLatLong = true
+    includeFields = "ImageDescription|Orientation"
+
+[module]
+  [module.hugoVersion]
+    min = "0.121.2"
+  [[module.imports]]
+    path = "github.com/nicokaiser/hugo-theme-gallery/v4"
+
+[menu]
+  [[menu.footer]]
+    name = "GitHub"
+    url = "https://github.com/tonisp-sudo"
+    weight = 3
+
+[services]
+  [services.rss]
+    limit = 100
