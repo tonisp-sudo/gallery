@@ -35,20 +35,21 @@ jobs:
         run: git submodule update --init --recursive
       # ---------------------------------------------------------------------------------------------------
 
+      # 1. Install Hugo (MOVED UP: This MUST run before any 'hugo' command)
+      - name: Install Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: 'latest'
+          extended: true
+      
       # --- FIX 3: Resolve Hugo Modules (Forces dependency fetch) ---
+      # This step can now run as 'hugo' is in the PATH
       - name: Resolve Hugo Modules
         run: |
           hugo mod clean
           hugo mod tidy
           hugo mod download
       # -----------------------------------------------------------------
-
-      # 1. Install Hugo using a dedicated action that handles Go/Extended correctly
-      - name: Install Hugo
-        uses: peaceiris/actions-hugo@v2
-        with:
-          hugo-version: 'latest'
-          extended: true
 
       # 2. Run the Hugo build command, creating the 'public' folder
       - name: Build Hugo Site
