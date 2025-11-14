@@ -21,8 +21,7 @@ jobs:
           submodules: true
           lfs: false
 
-      # --- FIX: New step to move aside the root go.mod file if it exists. ---
-      # This file often contains local 'replace' directives that break CI/CD environments.
+      # --- FIX 1: Move aside the root go.mod file if it exists (to fix 'replace' directive error) ---
       - name: Clean up local go.mod
         run: |
           if [ -f go.mod ]; then
@@ -37,6 +36,13 @@ jobs:
         with:
           hugo-version: 'latest'
           extended: true
+
+      # --- FIX 2: NEW STEP to force Hugo Module download and cleanup (to fix 'module not found' error) ---
+      - name: Prepare Hugo Modules
+        run: |
+          hugo mod clean
+          hugo mod tidy
+      # ---------------------------------------------------------------------------------------------------
 
       # 2. Run the Hugo build command, creating the 'public' folder
       - name: Build Hugo Site
@@ -61,7 +67,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: hugo-site-public
-          # The artifact is placed at the root, containing the 'public' folder inside.
 
       - name: Deploy to Azure Static Web Apps
         id: builddeploy
