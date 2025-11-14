@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  # JOB 1: Dedicated Build Job (using vendor to resolve module conflict)
+  # JOB 1: Dedicated Builde Job (using vendor to resolve module conflict)
   build_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
@@ -124,3 +124,4 @@ jobs:
     runs-on: ubuntu-latest
     name: Close Pull Request Job
     steps
+
