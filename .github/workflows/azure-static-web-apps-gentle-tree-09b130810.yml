@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  # JOB 1: Dedicated Build Job (using vendor to resolve module conflict)
+  # JOB 1: Dedicated Build Job(1) (using vendor to resolve module conflict)
   build_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
@@ -97,3 +97,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_TREE_09B130810 }}
           action: "close"
+
