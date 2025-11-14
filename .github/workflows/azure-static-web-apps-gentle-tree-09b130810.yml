@@ -18,14 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
+          # This checks out the theme files into the themes/ folder
           submodules: true
           lfs: false
 
-      # --- FIX 1: Move aside the root go.mod file if it exists (to fix 'replace' directive error) ---
+      # --- FIX 1: Move aside the root go.mod file (Prevents 'replace' directive error) ---
       - name: Clean up local go.mod
         run: |
           if [ -f go.mod ]; then
-            echo "Found root go.mod with replacement directives. Moving it aside."
+            echo "Found root go.mod. Moving it aside to prevent module path confusion."
             mv go.mod go.mod.bak
           fi
       # ----------------------------------------------------------------------
@@ -37,11 +38,10 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # --- FIX 2: REMOVED Prepare Hugo Modules step here, as it conflicts with Git submodules. ---
-
       # 2. Run the Hugo build command, creating the 'public' folder
       - name: Build Hugo Site
-        run: hugo --gc --minify
+        # --- FIX 2: Added --theme flag to force Hugo to use the locally checked-out theme directory. ---
+        run: hugo --gc --minify --theme "hugo-theme-gallery"
 
       # 3. Upload the built 'public' folder as a named artifact for the next job
       - name: Upload Artifact
@@ -67,18 +67,17 @@ jobs:
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          # Using the SECRET name from your failing job:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_TREE_09B130810 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
           # CRITICAL FIXES: We skip the build and point directly to the downloaded artifact
           skip_app_build: true
           app_artifact_location: "public"
           
           # Other config parameters:
-          app_location: "/" # Source code location (required, but ignored due to skip_app_build)
+          app_location: "/"
           api_location: ""
-          output_location: "public" # Built app content directory (used internally by SWA)
+          output_location: "public"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
