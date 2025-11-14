@@ -35,23 +35,17 @@ jobs:
         run: git submodule update --init --recursive
       # ---------------------------------------------------------------------------------------------------
 
-      # 1. Install Hugo (MOVED UP: This MUST run before any 'hugo' command)
+      # 1. Install Hugo (This MUST run before any 'hugo' command)
       - name: Install Hugo
         uses: peaceiris/actions-hugo@v2
         with:
           hugo-version: 'latest'
           extended: true
-      
-      # --- FIX 3: Resolve Hugo Modules (Forces dependency fetch) ---
-      # This step can now run as 'hugo' is in the PATH
-      - name: Resolve Hugo Modules
-        run: |
-          hugo mod clean
-          hugo mod tidy
-          hugo mod download
-      # -----------------------------------------------------------------
+
+      # --- REMOVED STEP: The 'Resolve Hugo Modules' step was causing the failure by forcing module lookup. ---
 
       # 2. Run the Hugo build command, creating the 'public' folder
+      # Hugo will now rely on the theme files checked out by the submodule.
       - name: Build Hugo Site
         run: hugo --gc --minify
 
