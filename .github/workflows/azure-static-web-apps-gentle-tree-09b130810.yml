@@ -37,12 +37,7 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # --- FIX 2: NEW STEP to force Hugo Module download and cleanup (to fix 'module not found' error) ---
-      - name: Prepare Hugo Modules
-        run: |
-          hugo mod clean
-          hugo mod tidy
-      # ---------------------------------------------------------------------------------------------------
+      # --- FIX 2: REMOVED Prepare Hugo Modules step here, as it conflicts with Git submodules. ---
 
       # 2. Run the Hugo build command, creating the 'public' folder
       - name: Build Hugo Site
