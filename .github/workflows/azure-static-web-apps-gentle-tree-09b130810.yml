@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          # This checks out the theme files into the themes/ folder
+          # This should check out the theme files, but we'll manually ensure it below.
           submodules: true
           lfs: false
 
@@ -30,6 +30,11 @@ jobs:
             mv go.mod go.mod.bak
           fi
       # ----------------------------------------------------------------------
+      
+      # --- FIX 3 (New): Explicitly initialize and update submodules to ensure theme files are present ---
+      - name: Initialize Submodules
+        run: git submodule update --init --recursive
+      # ---------------------------------------------------------------------------------------------------
 
       # 1. Install Hugo using a dedicated action that handles Go/Extended correctly
       - name: Install Hugo
@@ -40,7 +45,7 @@ jobs:
 
       # 2. Run the Hugo build command, creating the 'public' folder
       - name: Build Hugo Site
-        # --- FIX 2: Added --theme flag to force Hugo to use the locally checked-out theme directory. ---
+        # The --theme flag overrides the module path in hugo.toml with the local directory name.
         run: hugo --gc --minify --theme "hugo-theme-gallery"
 
       # 3. Upload the built 'public' folder as a named artifact for the next job
