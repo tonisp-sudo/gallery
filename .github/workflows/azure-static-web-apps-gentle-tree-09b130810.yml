@@ -34,7 +34,6 @@ jobs:
           if [ -f "go.mod" ]; then
             echo "Removing conflicting replace directives from go.mod..."
             # sed command to remove lines containing 'github.com/nicokaiser/hugo-theme-gallery/v4' AND 'replace'
-            # Note: This is crucial for CI/CD environments
             sed -i.bak '/github.com\/nicokaiser\/hugo-theme-gallery\/v4/ { /replace/d; }' go.mod
             echo "--- Cleaned go.mod ---"
             cat go.mod
@@ -47,11 +46,12 @@ jobs:
       - name: Resolve Hugo Modules via Vendor
         run: hugo mod vendor
 
-      # CRITICAL STEP 3: Convert Problematic PNGs to JPG
-      # Fixes the "image: unknown format" error by ensuring all transformable images are robust JPGs.
+      # CRITICAL STEP 3: Convert Problematic PNGs to JPG (Now fault-tolerant)
+      # Fixes the "image: unknown format" error by converting PNGs, and deleting broken ones.
       - name: Convert Problematic PNGs to JPG
         run: |
           echo "Installing ImageMagick for image conversion..."
+          # Install ImageMagick to handle image conversion
           sudo apt-get update && sudo apt-get install -y imagemagick
 
           echo "Converting all PNG files in content/ to JPG..."
@@ -60,12 +60,17 @@ jobs:
               # Define the new filename (replacing .png with .jpg)
               newfile="${file%.png}.jpg"
               
-              # Use ImageMagick 'convert' to process the file and save as JPG
-              convert "$file" "$newfile"
-              
-              # Delete the original problematic PNG file
-              rm "$file"
-              echo "Converted and replaced: $file -> $newfile"
+              # Attempt to convert the file. Redirect stderr to a variable to check for errors.
+              if ! convert "$file" "$newfile" 2> /tmp/convert_error; then
+                  # If conversion fails (i.e., due to improper header), print error and remove source
+                  echo "Error converting '$file'. Removing potentially corrupted source file."
+                  cat /tmp/convert_error
+                  rm "$file"
+              else
+                  # If successful, delete the original PNG
+                  rm "$file"
+                  echo "Converted and replaced: $file -> $newfile"
+              fi
           done
           echo "Conversion complete."
 
