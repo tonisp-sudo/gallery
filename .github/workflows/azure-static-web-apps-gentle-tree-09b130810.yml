@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  # JOB 1: Dedicated Build Job (relying on the Hugo Module configuration)
+  # JOB 1: Dedicated Build Job (using vendor to resolve module conflict)
   build_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
@@ -18,7 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          # Submodules are no longer needed, as the theme is now a Hugo Module.
           lfs: false
 
       # 1. Install Hugo
@@ -28,12 +27,13 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # 2. Resolve Hugo Modules (Uses 'tidy' to resolve dependencies based on go.mod)
-      - name: Resolve Hugo Modules
-        run: hugo mod tidy
+      # 2. Resolve Hugo Modules by VENDERING (This is the critical fix for the 'replaced by ../' error)
+      - name: Resolve Hugo Modules via Vendor
+        run: hugo mod vendor
 
       # 3. Run the Hugo build command
       - name: Build Hugo Site
+        # The build process now uses the local _vendor directory automatically
         run: hugo --gc --minify
 
       # 4. Upload the built 'public' folder as a named artifact
