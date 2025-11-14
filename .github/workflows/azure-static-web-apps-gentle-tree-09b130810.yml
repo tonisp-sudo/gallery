@@ -42,10 +42,17 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # --- REMOVED STEP: The 'Resolve Hugo Modules' step was causing the failure by forcing module lookup. ---
+      # --- RE-ADDING RESOLVE STEP (The key to fixing the module not found error) ---
+      # This step must run AFTER 'Install Hugo' to work correctly.
+      - name: Resolve Hugo Modules
+        run: |
+          hugo mod clean
+          hugo mod tidy
+          hugo mod download
+      # ----------------------------------------------------------------------------
 
       # 2. Run the Hugo build command, creating the 'public' folder
-      # Hugo will now rely on the theme files checked out by the submodule.
+      # Hugo will now rely on the theme files checked out by the submodule AND modules resolved here.
       - name: Build Hugo Site
         run: hugo --gc --minify
 
