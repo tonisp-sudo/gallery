@@ -10,31 +10,65 @@ on:
       - main
 
 jobs:
-  build_and_deploy_job:
+  # JOB 1: Dedicated Build Job (using the reliable peaceiris action)
+  build_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
+    name: Build Hugo Site
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
-      - name: Build And Deploy
+
+      # 1. Install Hugo using a dedicated action that handles Go/Extended correctly
+      - name: Install Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: 'latest'
+          extended: true
+
+      # 2. Run the Hugo build command, creating the 'public' folder
+      - name: Build Hugo Site
+        run: hugo --gc --minify
+
+      # 3. Upload the built 'public' folder as a named artifact for the next job
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hugo-site-public
+          path: public
+
+  # JOB 2: Dedicated Deployment Job (skipping the build step)
+  deploy_job:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Deploy To Azure
+    needs: build_job # Wait for the build job to complete successfully
+    steps:
+      # 1. Download the built 'public' folder artifact from the previous job
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hugo-site-public
+          # The artifact is placed at the root, containing the 'public' folder inside.
+
+      - name: Deploy to Azure Static Web Apps
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
+          # Using the SECRET name from your failing job:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_TREE_09B130810 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "public" # Built app content directory - optional
-          # --- FIX: ADDED CUSTOM BUILD COMMAND HERE ---
-          app_build_command: 'hugo --gc --minify' 
-          # ---------------------------------------------
-          ###### End of Repository/Build Configurations ######
+          # CRITICAL FIXES: We skip the build and point directly to the downloaded artifact
+          skip_app_build: true
+          app_artifact_location: "public"
+          
+          # Other config parameters:
+          app_location: "/" # Source code location (required, but ignored due to skip_app_build)
+          api_location: ""
+          output_location: "public" # Built app content directory (used internally by SWA)
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
