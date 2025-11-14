@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  # JOB 1: Dedicated Builde Job (using vendor to resolve module conflict)
+  # JOB 1: Dedicated Build Job (using vendor to resolve module conflict)
   build_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
@@ -20,7 +20,7 @@ jobs:
         with:
           lfs: false
 
-      # 1. Install Hugo
+      # 1. Install Hugo (needed before any hugo command can run)
       - name: Install Hugo
         uses: peaceiris/actions-hugo@v2
         with:
@@ -28,16 +28,17 @@ jobs:
           extended: true
       
       # CRITICAL STEP 1: Remove the conflicting 'replace' directive from go.mod
-      # This is the root cause of the "no such file or directory" error in CI/CD.
+      # This fixes the "no such file or directory" error during module resolution.
       - name: Clean Conflicting go.mod Replace Directive
         run: |
-          # Use sed to remove any line containing the theme replacement directive.
-          # We target the module path and the 'replace' keyword to remove the problematic local path reference.
           if [ -f "go.mod" ]; then
             echo "Removing conflicting replace directives from go.mod..."
             # sed command to remove lines containing 'github.com/nicokaiser/hugo-theme-gallery/v4' AND 'replace'
+            # Note: This is crucial for CI/CD environments
             sed -i.bak '/github.com\/nicokaiser\/hugo-theme-gallery\/v4/ { /replace/d; }' go.mod
-            cat go.mod # Print the cleaned file for inspection in the logs
+            echo "--- Cleaned go.mod ---"
+            cat go.mod
+            echo "----------------------"
           else
             echo "go.mod not found. Skipping clean-up."
           fi
@@ -54,6 +55,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y imagemagick
 
           echo "Converting all PNG files in content/ to JPG..."
+          # Find all PNGs in the content directory and process them
           find content -type f -name "*.png" -print0 | while IFS= read -r -d $'\0' file; do
               # Define the new filename (replacing .png with .jpg)
               newfile="${file%.png}.jpg"
@@ -123,5 +125,10 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     name: Close Pull Request Job
-    steps
-
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_TREE_09B130810 }}
+          action: "close"
