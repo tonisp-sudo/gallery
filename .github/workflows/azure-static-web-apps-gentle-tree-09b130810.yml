@@ -1,4 +1,4 @@
-name: Azure Static Web Apps CI/CD
+name: GitHub Pages CI/CD
 
 on:
   push:
@@ -8,27 +8,33 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+  # Add workflow_dispatch to allow manual runs
+  workflow_dispatch:
+
+# Grant GITHUB_TOKEN the necessary permissions
+permissions:
+  contents: read
+  pages: write # Required to deploy to GitHub Pages
+  id-token: write # Required for deployment
 
 jobs:
-  # JOB 1: Dedicated Build Job (using vendor to resolve module conflict)
+  # JOB 1: Dedicated Build Job with all image processing steps
   build_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-    name: Build Hugo Site Final
+    name: Build Hugo Site & Prepare Artifact
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: false
 
       # 1. Install Hugo (needed before any hugo command can run)
       - name: Install Hugo
-        uses: peaceiris/actions-hugo@v2
+        uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: 'latest'
           extended: true
       
-      # CRITICAL STEP 1: Remove the conflicting 'replace' directive from go.mod
-      # This fixes the "no such file or directory" error during module resolution.
+      # CRITICAL STEP 1: Clean Conflicting go.mod Replace Directive
       - name: Clean Conflicting go.mod Replace Directive
         run: |
           if [ -f "go.mod" ]; then
@@ -42,32 +48,24 @@ jobs:
             echo "go.mod not found. Skipping clean-up."
           fi
 
-      # 2. Resolve Hugo Modules by VENDERING (This forces a clean dependency download)
+      # 2. Resolve Hugo Modules via Vendor
       - name: Resolve Hugo Modules via Vendor
         run: hugo mod vendor
 
       # CRITICAL STEP 3: Convert Problematic PNGs to JPG (Now fault-tolerant)
-      # Fixes the "image: unknown format" error by converting PNGs, and deleting broken ones.
       - name: Convert Problematic PNGs to JPG
         run: |
           echo "Installing ImageMagick for image conversion..."
-          # Install ImageMagick to handle image conversion
           sudo apt-get update && sudo apt-get install -y imagemagick
 
           echo "Converting all PNG files in content/ to JPG..."
-          # Find all PNGs in the content directory and process them
           find content -type f -name "*.png" -print0 | while IFS= read -r -d $'\0' file; do
-              # Define the new filename (replacing .png with .jpg)
               newfile="${file%.png}.jpg"
-              
-              # Attempt to convert the file. Redirect stderr to a variable to check for errors.
               if ! convert "$file" "$newfile" 2> /tmp/convert_error; then
-                  # If conversion fails (i.e., due to improper header), print error and remove source
                   echo "Error converting '$file'. Removing potentially corrupted source file."
                   cat /tmp/convert_error
                   rm "$file"
               else
-                  # If successful, delete the original PNG
                   rm "$file"
                   echo "Converted and replaced: $file -> $newfile"
               fi
@@ -78,62 +76,47 @@ jobs:
       - name: Build Hugo Site
         run: hugo --gc --minify
 
+      # CRITICAL STEP 5: Aggressively Optimize Images to reduce overall site size
+      - name: Aggressively Optimize Images
+        run: |
+          echo "Aggressively optimizing JPG images in the 'public' directory (Quality 70)..."
+          find public -type f -name "*.jpg" -exec mogrify -quality 70 {} \;
+          echo "Optimization complete. Site size should be significantly reduced."
+          
+      # STEP to check final size
+      - name: Calculate Site Size
+        run: |
+          echo "--- FINAL SITE SIZE ---"
+          du -sh public
+          echo "-----------------------"
+
+
       # CRITICAL STEP 4: Rename files with illegal characters (like :) before uploading the artifact
-      # This fixes the artifact upload error caused by filesystems like NTFS not allowing ':'
       - name: Sanitize Output Filenames
         run: |
           echo "Sanitizing filenames by replacing colons (:) with hyphens (-)..."
-          # Find all files in the 'public' directory containing a colon and rename them
           find public -name '*:*' -print0 | while IFS= read -r -d $'\0' file; do
               newfile=$(echo "$file" | tr ':' '-')
               mv "$file" "$newfile"
               echo "Renamed: '$file' -> '$newfile'"
           done
 
-      # 4. Upload the built 'public' folder as a named artifact
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      # 4. Upload the built 'public' folder as the required GitHub Pages artifact
+      - name: Upload GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: hugo-site-public
+          # The contents of the built Hugo site (your 'public' directory)
           path: public
 
-  # JOB 2: Dedicated Deployment Job
+  # JOB 2: Dedicated Deployment Job for GitHub Pages
   deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    name: Deploy To Azure
+    name: Deploy To GitHub Pages
     needs: build_job
     steps:
-      # 1. Download the built 'public' folder artifact
-      - name: Download Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: hugo-site-public
-
-      - name: Deploy to Azure Static Web Apps
-        id: builddeploy
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_TREE_09B130810 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          # CRITICAL FIXES: We skip the build and point directly to the downloaded artifact
-          skip_app_build: true
-          app_artifact_location: "public"
-
-          # Other config parameters:
-          app_location: "/"
-          api_location: ""
-          output_location: "public"
-
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_TREE_09B130810 }}
-          action: "close"
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
