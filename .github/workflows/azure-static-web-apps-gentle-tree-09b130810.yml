@@ -21,6 +21,16 @@ jobs:
           submodules: true
           lfs: false
 
+      # --- FIX: New step to move aside the root go.mod file if it exists. ---
+      # This file often contains local 'replace' directives that break CI/CD environments.
+      - name: Clean up local go.mod
+        run: |
+          if [ -f go.mod ]; then
+            echo "Found root go.mod with replacement directives. Moving it aside."
+            mv go.mod go.mod.bak
+          fi
+      # ----------------------------------------------------------------------
+
       # 1. Install Hugo using a dedicated action that handles Go/Extended correctly
       - name: Install Hugo
         uses: peaceiris/actions-hugo@v2
