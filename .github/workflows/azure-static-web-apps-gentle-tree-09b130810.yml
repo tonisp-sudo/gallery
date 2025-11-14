@@ -72,11 +72,18 @@ jobs:
           done
           echo "Conversion complete."
 
-      # 3. Run the Hugo build command (FIXED BASE URL)
-      - name: Build Hugo Site
-        # CRITICAL CHANGE: We pass the correct base URL to Hugo here. 
-        # The repository name (e.g., 'gallery') is used as the subdirectory for GitHub Pages.
-        run: hugo --gc --minify --baseURL "/${{ github.event.repository.name }}/"
+      # 3. Run the Hugo build command (FIXED BASE URL and RELATIVE LINKS)
+      - name: Configure and Build Hugo Site (with relative link fix)
+        run: |
+          # CRITICAL FIX: Injecting relative URL settings to force correct pathing.
+          # We append these to config.toml before the build runs.
+          # These flags are essential for GitHub Project Pages that use a subdirectory.
+          echo "" >> config.toml
+          echo "relativeURLs = true" >> config.toml
+          echo "canonifyURLs = true" >> config.toml
+          
+          # Build the site using the correct base URL
+          hugo --gc --minify --baseURL "/${{ github.event.repository.name }}/"
 
       # CRITICAL STEP 5: Aggressively Optimize Images to reduce overall site size
       - name: Aggressively Optimize Images
