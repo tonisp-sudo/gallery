@@ -31,6 +31,9 @@ jobs:
           app_location: "/" # App source code path
           api_location: "" # Api source code path - optional
           output_location: "public" # Built app content directory - optional
+          # --- FIX: ADDED CUSTOM BUILD COMMAND HERE ---
+          app_build_command: 'hugo --gc --minify' 
+          # ---------------------------------------------
           ###### End of Repository/Build Configurations ######
 
   close_pull_request_job:
