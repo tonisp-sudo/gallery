@@ -52,28 +52,9 @@ jobs:
       - name: Resolve Hugo Modules via Vendor
         run: hugo mod vendor
 
-      # CRITICAL STEP 3: Convert Problematic PNGs to JPG (Now fault-tolerant and safe)
-      - name: Convert Problematic PNGs to JPG
-        run: |
-          echo "Installing ImageMagick for image conversion..."
-          sudo apt-get update && sudo apt-get install -y imagemagick
-
-          echo "Converting all PNG files in content/ to JPG..."
-          find content -type f -name "*.png" -print0 | while IFS= read -r -d $'\0' file; do
-              newfile="${file%.png}.jpg"
-              if ! convert "$file" "$newfile" 2> /tmp/convert_error; then
-                  # If conversion fails, do NOT delete the original PNG.
-                  echo "WARNING: Conversion failed for '$file'. Original PNG is preserved and will be deployed as-is."
-                  cat /tmp/convert_error
-                  # We use 'continue' to skip the rest of the loop for this file
-                  continue 
-              else
-                  # Conversion succeeded, now delete the old PNG and keep the new JPG
-                  rm "$file"
-                  echo "Converted and replaced: $file -> $newfile"
-              fi
-          done
-          echo "Conversion complete."
+      # --- REMOVED STEP: PNG CONVERSION ---
+      # This step was causing 'image: unknown format' errors during the build.
+      # We now rely solely on Hugo's built-in image processing capabilities.
 
       # 3. Run the Hugo build command (FIXED BASE URL and RELATIVE LINKS)
       - name: Configure and Build Hugo Site (with relative link fix and all content)
@@ -87,9 +68,13 @@ jobs:
           # Build the site using the correct base URL, and INCLUDE DRAFTS (-D) and FUTURE DATES (-F)
           hugo --gc --minify --baseURL "/${{ github.event.repository.name }}/" -D -F
 
-      # CRITICAL STEP 5: Aggressively Optimize Images to reduce overall site size
+      # CRITICAL STEP 4: Aggressively Optimize Images to reduce overall site size
       - name: Aggressively Optimize Images
         run: |
+          # Install ImageMagick here for optimization, as the conversion step was removed.
+          echo "Installing ImageMagick for image optimization..."
+          sudo apt-get update && sudo apt-get install -y imagemagick
+          
           echo "Aggressively optimizing JPG images in the 'public' directory (Quality 70)..."
           find public -type f -name "*.jpg" -exec mogrify -quality 70 {} \;
           echo "Optimization complete. Site size should be significantly reduced."
@@ -102,7 +87,7 @@ jobs:
           echo "-----------------------"
 
 
-      # CRITICAL STEP 4: Rename files with illegal characters (like :) before uploading the artifact
+      # CRITICAL STEP 5: Rename files with illegal characters (like :) before uploading the artifact
       - name: Sanitize Output Filenames
         run: |
           echo "Sanitizing filenames by replacing colons (:) with hyphens (-)..."
@@ -112,7 +97,7 @@ jobs:
               echo "Renamed: '$file' -> '$newfile'"
           done
 
-      # 4. Upload the built 'public' folder as the required GitHub Pages artifact
+      # 6. Upload the built 'public' folder as the required GitHub Pages artifact
       - name: Upload GitHub Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
