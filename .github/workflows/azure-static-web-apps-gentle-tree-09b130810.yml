@@ -52,7 +52,7 @@ jobs:
       - name: Resolve Hugo Modules via Vendor
         run: hugo mod vendor
 
-      # CRITICAL STEP 3: Convert Problematic PNGs to JPG (Now fault-tolerant)
+      # CRITICAL STEP 3: Convert Problematic PNGs to JPG (Now fault-tolerant and safe)
       - name: Convert Problematic PNGs to JPG
         run: |
           echo "Installing ImageMagick for image conversion..."
@@ -62,10 +62,13 @@ jobs:
           find content -type f -name "*.png" -print0 | while IFS= read -r -d $'\0' file; do
               newfile="${file%.png}.jpg"
               if ! convert "$file" "$newfile" 2> /tmp/convert_error; then
-                  echo "Error converting '$file'. Removing potentially corrupted source file."
+                  # If conversion fails, do NOT delete the original PNG.
+                  echo "WARNING: Conversion failed for '$file'. Original PNG is preserved and will be deployed as-is."
                   cat /tmp/convert_error
-                  rm "$file"
+                  # We use 'continue' to skip the rest of the loop for this file
+                  continue 
               else
+                  # Conversion succeeded, now delete the old PNG and keep the new JPG
                   rm "$file"
                   echo "Converted and replaced: $file -> $newfile"
               fi
@@ -73,17 +76,16 @@ jobs:
           echo "Conversion complete."
 
       # 3. Run the Hugo build command (FIXED BASE URL and RELATIVE LINKS)
-      - name: Configure and Build Hugo Site (with relative link fix)
+      - name: Configure and Build Hugo Site (with relative link fix and all content)
         run: |
           # CRITICAL FIX: Injecting relative URL settings to force correct pathing.
-          # We append these to config.toml before the build runs.
-          # These flags are essential for GitHub Project Pages that use a subdirectory.
+          # Append these to config.toml before the build runs.
           echo "" >> config.toml
           echo "relativeURLs = true" >> config.toml
           echo "canonifyURLs = true" >> config.toml
           
-          # Build the site using the correct base URL
-          hugo --gc --minify --baseURL "/${{ github.event.repository.name }}/"
+          # Build the site using the correct base URL, and INCLUDE DRAFTS (-D) and FUTURE DATES (-F)
+          hugo --gc --minify --baseURL "/${{ github.event.repository.name }}/" -D -F
 
       # CRITICAL STEP 5: Aggressively Optimize Images to reduce overall site size
       - name: Aggressively Optimize Images
